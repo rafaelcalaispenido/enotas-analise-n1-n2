@@ -1,0 +1,1 @@
+Senha de edição: Analise@2026
