@@ -298,8 +298,8 @@ async function saveAnalysis(goNext=true){
 // ── SCREENS ───────────────────────────────────────────────────
 function setScreen(name){
   S.screen=name;
-  ['loading','home','analyze','export','calibration','wbs','admin'].forEach(s=>{
-    const flexScreens=['wbs','admin'];
+  ['loading','home','analyze','export','calibration','wbs','admin','ajuda'].forEach(s=>{
+    const flexScreens=['wbs','admin','ajuda'];
     document.getElementById('screen-'+s).style.display=s===name?(flexScreens.includes(s)?'flex':''):'none';
   });
   const cl=document.getElementById('cal-layout');
@@ -308,7 +308,7 @@ function setScreen(name){
   if(ml) ml.style.display='flex';
   const bb=document.getElementById('back-btn');
   const bsep=document.getElementById('back-sep');
-  if(bb){const show=(name==='analyze'||name==='export'||name==='calibration'||name==='admin');bb.style.display=show?'flex':'none';if(bsep)bsep.style.display=show?'block':'none';if(name==='calibration'){bb.textContent='← Análise';bb.onclick=()=>{S.screen=S.agent?'analyze':'home';setScreen(S.agent?'analyze':'home');renderAgentPills();}}else if(name==='analyze'&&S.agent){bb.textContent='← Avaliadores';bb.onclick=()=>{S.agent=null;renderAgentPicker(S.period);};}else{bb.textContent='← Início';bb.onclick=()=>setScreen('home');}}
+  if(bb){const show=(name==='analyze'||name==='export'||name==='calibration'||name==='admin'||name==='ajuda');bb.style.display=show?'flex':'none';if(bsep)bsep.style.display=show?'block':'none';if(name==='calibration'){bb.textContent='← Análise';bb.onclick=()=>{S.screen=S.agent?'analyze':'home';setScreen(S.agent?'analyze':'home');renderAgentPills();}}else if(name==='analyze'&&S.agent){bb.textContent='← Avaliadores';bb.onclick=()=>{S.agent=null;renderAgentPicker(S.period);};}else{bb.textContent='← Início';bb.onclick=()=>setScreen('home');}}
   const sb=document.getElementById('sidebar');
   if(sb) sb.style.display=(name==='analyze'||name==='export'||name==='calibration')?'flex':'none';
   if(name==='wbs'&&sb) sb.style.display='none';
@@ -324,6 +324,7 @@ function setScreen(name){
   if(name==='export')renderExport();
   if(name==='wbs')renderWBS();
   if(name==='admin')renderAdmin();
+  if(name==='ajuda'){_ajudaStep=0;renderAjuda();}
   updateAuthUI();
 }
 function agentDone(a){return curTickets()[a].filter(t=>curAnalyses()[t[0]]).length;}
@@ -2338,6 +2339,147 @@ function toggleAuth(){
       toast('Senha incorreta.');
     }
   }
+}
+
+// ── AJUDA ─────────────────────────────────────────────────────
+var _ajudaStep=0;
+var _ajudaSteps=[
+  {
+    titulo:'O que é esta ferramenta?',
+    desc:'Esta ferramenta permite avaliar a qualidade dos atendimentos N1/N2 do eNotas de forma colaborativa, sem precisar de servidor ou banco de dados próprio.',
+    bullets:[
+      {b:'Banco de dados:','t':'Os dados ficam armazenados em um Gist privado do GitHub, acessível apenas por quem tem o token de acesso.'},
+      {b:'Períodos:','t':'Cada ciclo de avaliação (Fev–Abr, Maio etc.) possui seus próprios tickets e análises, separados por abas na tela inicial.'},
+      {b:'Acesso:','t':'A ferramenta usa uma senha de sessão e um modo de edição separado (cadeado no topo) para proteger os dados.'},
+    ],
+    dica:'Os dados são salvos automaticamente no Gist após cada avaliação. Não é necessário nenhum servidor ou instalação.'
+  },
+  {
+    titulo:'Selecionando período e avaliador',
+    desc:'Na tela inicial você escolhe o período de análise e, em seguida, o avaliador (analista de N2 responsável) cujos tickets serão avaliados.',
+    bullets:[
+      {b:'Períodos fixos:','t':'Fev–Abr 2026 e Maio 2026 já vêm pré-configurados com seus tickets.'},
+      {b:'Períodos dinâmicos:','t':'Novos períodos podem ser criados pelo Admin, com upload de planilha XLSX de tickets.'},
+      {b:'Avaliador:','t':'Após clicar no período, selecione o avaliador — a lista de tickets daquele avaliador aparece na barra lateral esquerda.'},
+    ],
+    dica:'Períodos sem tickets importados aparecerão destacados em laranja na tela inicial, indicando que é preciso acessar o Admin para importá-los.'
+  },
+  {
+    titulo:'Avaliando tickets',
+    desc:'Com um avaliador selecionado, clique em qualquer ticket da barra lateral para abrir o formulário de avaliação.',
+    bullets:[
+      {b:'Critérios:','t':'O formulário possui perguntas Q1–Q6 com opções de "Sim / Não / N/A", além de campos de justificativa e observações gerais.'},
+      {b:'N1 e N2:','t':'Os campos de analista N1 e N2 são preenchidos automaticamente, mas podem ser editados manualmente se necessário.'},
+      {b:'Salvar:','t':'Clique em "Salvar" (ou use Ctrl+S) para persistir a avaliação. O ticket ficará marcado como concluído na barra lateral.'},
+    ],
+    dica:'Se você navegar para outro ticket com alterações não salvas, a ferramenta pedirá confirmação antes de descartar as mudanças.'
+  },
+  {
+    titulo:'Navegação e filtros',
+    desc:'Use a barra lateral e os atalhos de teclado para navegar entre tickets com agilidade.',
+    bullets:[
+      {b:'Busca:','t':'Digite no campo de busca da barra lateral para filtrar tickets por ID ou tema.'},
+      {b:'Status:','t':'Filtre entre Todos, Pendentes e Concluídos usando os botões logo abaixo da busca.'},
+      {b:'Teclado:','t':'Use ← → (ou ↑ ↓) para navegar entre tickets, e Ctrl+S para salvar sem usar o mouse.'},
+    ],
+    dica:'Os atalhos de teclado só funcionam quando o foco não está em um campo de texto. Clique fora de qualquer input para ativá-los.'
+  },
+  {
+    titulo:'Dashboard, exportação e Admin',
+    desc:'Além de avaliar tickets, a ferramenta oferece visões gerenciais e controles avançados.',
+    bullets:[
+      {b:'Dashboard:','t':'Clique em "Dashboard" no menu superior para ver KPIs consolidados por período e avaliador, com gráficos e taxa de aprovação.'},
+      {b:'Baixar XLSX:','t':'Exporte as avaliações em planilha Excel, com filtro por período e avaliador, cada período em uma aba separada.'},
+      {b:'Admin:','t':'Disponível apenas no modo de edição. Permite criar períodos dinâmicos, importar tickets via XLSX, gerenciar agentes e fazer backup dos dados.'},
+    ],
+    dica:'O modo de edição (cadeado desbloqueado) é necessário para salvar avaliações e acessar o Admin. Em modo leitura, os dados são apenas visualizados.'
+  }
+];
+function renderAjuda(){
+  const el=document.getElementById('screen-ajuda');
+  if(!el)return;
+  const total=_ajudaSteps.length;
+  const step=_ajudaSteps[_ajudaStep];
+
+  // Stepper
+  var stepperHTML='<div style="display:flex;align-items:center;justify-content:center;margin-bottom:28px;gap:0">';
+  for(var i=0;i<total;i++){
+    const done=i<_ajudaStep;
+    const active=i===_ajudaStep;
+    const col=active?'var(--primary)':(done?'var(--primary)':'var(--border2)');
+    const bg=active?'var(--primary)':(done?'var(--primary)':'#fff');
+    const tc=active?'#fff':(done?'#fff':'var(--text3)');
+    const inner=done?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':(i+1);
+    stepperHTML+='<div style="display:flex;flex-direction:column;align-items:center;gap:6px;z-index:1">';
+    stepperHTML+='<div onclick="_ajudaStep='+i+';renderAjuda()" style="width:32px;height:32px;border-radius:50%;background:'+bg+';border:2px solid '+col+';color:'+tc+';font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;flex-shrink:0">'+inner+'</div>';
+    stepperHTML+='</div>';
+    if(i<total-1){
+      const lineCol=i<_ajudaStep?'var(--primary)':'var(--border2)';
+      stepperHTML+='<div style="flex:1;height:2px;background:'+lineCol+';margin:0 4px;margin-bottom:6px;min-width:32px;max-width:80px;transition:.2s"></div>';
+    }
+  }
+  stepperHTML+='</div>';
+
+  // Topics sidebar
+  var topicsHTML='<div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 14px;min-width:180px;max-width:220px;flex-shrink:0">';
+  topicsHTML+='<div style="font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:12px">Tópicos</div>';
+  for(var j=0;j<total;j++){
+    const active=j===_ajudaStep;
+    const done=j<_ajudaStep;
+    const col=active?'var(--primary)':(done?'var(--green)':'var(--text2)');
+    const bg=active?'var(--primary-light)':'transparent';
+    const fw=active?'700':'500';
+    topicsHTML+='<div onclick="_ajudaStep='+j+';renderAjuda()" style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;background:'+bg+';margin-bottom:2px;transition:.15s" onmouseover="this.style.background=\'var(--bg)\'" onmouseout="this.style.background=\''+bg+'\'">';
+    if(done){
+      topicsHTML+='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+    }else{
+      topicsHTML+='<div style="width:6px;height:6px;border-radius:50%;background:'+col+';flex-shrink:0"></div>';
+    }
+    topicsHTML+='<span style="font-size:12px;font-weight:'+fw+';color:'+col+';line-height:1.3">'+_ajudaSteps[j].titulo+'</span>';
+    topicsHTML+='</div>';
+  }
+  topicsHTML+='</div>';
+
+  // Content
+  var bulletsHTML='';
+  if(step.bullets&&step.bullets.length){
+    bulletsHTML='<ul style="margin:0 0 16px 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px">';
+    step.bullets.forEach(function(bl){
+      bulletsHTML+='<li style="display:flex;gap:8px;align-items:flex-start"><div style="width:6px;height:6px;border-radius:50%;background:var(--primary);margin-top:7px;flex-shrink:0"></div><span style="font-size:13.5px;color:var(--text2);line-height:1.6"><strong style="color:var(--text)">'+bl.b+'</strong> '+bl.t+'</span></li>';
+    });
+    bulletsHTML+='</ul>';
+  }
+  var dicaHTML='';
+  if(step.dica){
+    dicaHTML='<div style="background:#f3e8ff;border-left:4px solid #8B2FC9;border-radius:0 8px 8px 0;padding:12px 16px;margin-top:4px">';
+    dicaHTML+='<div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:#6B21A8;text-transform:uppercase;margin-bottom:4px">Dica</div>';
+    dicaHTML+='<div style="font-size:13px;color:#4C1D95;line-height:1.6">'+step.dica+'</div>';
+    dicaHTML+='</div>';
+  }
+
+  var contentHTML='<div style="flex:1;background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:28px 28px 24px;min-width:0">';
+  contentHTML+='<div style="font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--primary);text-transform:uppercase;margin-bottom:8px">Passo '+(_ajudaStep+1)+' de '+total+'</div>';
+  contentHTML+='<div style="font-family:Nunito,sans-serif;font-size:22px;font-weight:700;color:var(--text);margin-bottom:12px;line-height:1.3">'+step.titulo+'</div>';
+  contentHTML+='<div style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:18px">'+step.desc+'</div>';
+  contentHTML+=bulletsHTML;
+  contentHTML+=dicaHTML;
+  contentHTML+='</div>';
+
+  // Navigation
+  var navHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px">';
+  navHTML+='<div style="font-size:13px;color:var(--text3)">'+(_ajudaStep+1)+' / '+total+'</div>';
+  navHTML+='<div style="display:flex;gap:10px">';
+  if(_ajudaStep>0){
+    navHTML+='<button onclick="_ajudaStep--;renderAjuda()" style="padding:8px 20px;background:#fff;border:1.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--primary-dark);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.borderColor=\'var(--primary)\'" onmouseout="this.style.borderColor=\'var(--border2)\'">← Anterior</button>';
+  }
+  if(_ajudaStep<total-1){
+    navHTML+='<button onclick="_ajudaStep++;renderAjuda()" style="padding:8px 20px;background:var(--primary);border:none;border-radius:var(--radius-sm);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.opacity=\'.88\'" onmouseout="this.style.opacity=\'1\'">Próximo →</button>';
+  }else{
+    navHTML+='<button onclick="setScreen(\'home\')" style="padding:8px 20px;background:var(--primary);border:none;border-radius:var(--radius-sm);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.opacity=\'.88\'" onmouseout="this.style.opacity=\'1\'">Concluir ✓</button>';
+  }
+  navHTML+='</div></div>';
+
+  el.innerHTML=stepperHTML+'<div style="display:flex;gap:20px;align-items:flex-start">'+contentHTML+topicsHTML+'</div>'+navHTML;
 }
 
 function updateAuthUI(){
